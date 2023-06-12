@@ -1,70 +1,93 @@
 #include <iostream>
 #include <vector>
-#include <tuple>
 #include <queue>
 
 using namespace std;
-int casos, n, m, k, s, t;
-const int  INF = 1e18;
-vector<vector<pair<int,int>>> adj;
-vector<vector<pair<int,int>>> adj_inv;
-vector<tuple<int,int,int>> candidatas;
+const int INF = 1e18;
+vector<vector<int>> adj;
+vector<vector<int>> capacity;
 
-vector<int> dijkstra(int x, vector<vector<pair<int,int>>>& adj){
-    vector<int> distance(n+1);
-    priority_queue<pair<int,int>> q;
-    vector<int> processed(n+1, false);
+int bfs(int s, int t, vector<int>& parent) {
+    fill(parent.begin(), parent.end(), -1);
+    parent[s] = -2;
+    queue<pair<int, int>> q;
+    q.push({s, INF});
 
-    for (int i = 1; i <= n; i++) distance[i] = INF;
-    distance[x] = 0; q.push({0,x});
     while (!q.empty()) {
-        int a = q.top().second; q.pop();
-        if (processed[a]) continue;
-        processed[a] = true;
-        for (auto u : adj[a]) {
-            int b = u.first, w = u.second;
-            if (distance[a]+w < distance[b]) {
-                distance[b] = distance[a]+w;
-                q.push({-distance[b],b});
+        int cur = q.front().first;
+        int flow = q.front().second;
+        q.pop();
+
+        for (int next : adj[cur]) {
+            if (parent[next] == -1 && capacity[cur][next]) {
+                parent[next] = cur;
+                int new_flow = min(flow, capacity[cur][next]);
+                if (next == t)
+                    return new_flow;
+                q.push({next, new_flow});
             }
         }
     }
-    return distance;
-}
 
-int main() {
-
-    cin >> casos;
-
-    for (int i = 0; i < casos; i++) {
-        cin >> n >> m >> k >> s >> t;
-        adj.clear();
-        adj.resize(n + 1);
-        adj_inv.clear();
-        adj_inv.resize(n + 1);
-        for (int j = 0; j < m; j++) {
-            int d, c, l;
-            cin >> d >> c >> l;
-            adj[d].push_back({c, l});
-            adj_inv[c].push_back({d, l});
-        }
-        candidatas.clear();
-        for (int j = 0; j < k; j++) {
-            int u, v, q;
-            cin >> u >> v >> q;
-            candidatas.push_back({u, v, q});
-        }
-
-    vector<int> distS = dijkstra(s, adj);
-    vector<int> distT = dijkstra(t, adj_inv);
-    int actual = distS[t];
-
-    for(int i=0;i<k;i++){
-        actual = min(actual, distS[get<0>(candidatas[i])] + get<2>(candidatas[i]) + distT[get<1>(candidatas[i])]);
-        actual = min(actual, distS[get<1>(candidatas[i])] + get<2>(candidatas[i]) + distT[get<0>(candidatas[i])]);
-    }
-    cout << actual << endl;
-    }
     return 0;
 }
 
+int maxflow(int s, int t) {
+    int flow = 0;
+    vector<int> parent(adj.size());
+    int new_flow;
+
+    while (new_flow = bfs(s, t, parent)) {
+        flow += new_flow;
+        int cur = t;
+        while (cur != s) {
+            int prev = parent[cur];
+            capacity[prev][cur] -= new_flow;
+            capacity[cur][prev] += new_flow;
+            cur = prev;
+        }
+    }
+    return flow;
+}
+
+int main() {
+    ios_base::sync_with_stdio(false);
+    cin.tie(NULL);
+
+    int n, m;
+    while (cin >> n >> m) {
+        if (n == 0 && m == 0){
+            break;
+        }
+        int s = 0;  // Fuente
+        int t = n + 1;  // Sumidero
+        adj.clear();
+        adj.resize(n + 2);
+        capacity.clear();
+        capacity.resize(n+2, vector<int>(n+2));
+        for (int i = 1; i <= n; i++) {
+            int creencia;
+            cin >> creencia;
+            if (creencia) {
+                adj[s].push_back(i);
+                capacity[s][i]=1;
+            } else {
+                adj[i].push_back(t);
+                capacity[i][t]=1;
+            }
+        }
+
+        for (int i = 0; i < m; i++) {
+            int j, v;
+            cin >> j >> v;
+            adj[v].push_back(j);
+            adj[j].push_back(v);
+            capacity[v][j] = 1;
+            capacity[j][v] = 1;
+        }
+
+        int result = maxflow(s, t);
+        cout << result << endl;
+    }
+    return 0;
+}
